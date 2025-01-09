@@ -1,0 +1,100 @@
+#include "pipex.h"
+
+char *ft_substr(char const *s, unsigned int start, size_t len)
+{
+	char *sub_str;
+	size_t slen;
+	size_t i;
+
+	if (!s)
+		return (NULL);
+	i = 0;
+	slen = ft_strlen(s);
+	if (start >= slen)
+		return (ft_strdup(""));
+	if (len > slen - start)
+		len = slen - start;
+	sub_str = (char *)malloc(len + 1);
+	if (!sub_str)
+		return (NULL);
+	while (i < len)
+	{
+		sub_str[i] = s[start + i];
+		i++;
+	}
+	sub_str[len] = '\0';
+	return (sub_str);
+}
+
+static int ft_countwords(const char *s, char sep)
+{
+	int i;
+	int flg;
+	int count;
+
+	i = 0;
+	flg = 1;
+	count = 0;
+	while (s[i])
+	{
+		if (flg == 1 && s[i] != sep)
+		{
+			count++;
+			flg = 0;
+		}
+		else if (s[i] == sep)
+			flg = 1;
+		i++;
+	}
+	return (count);
+}
+
+static int word_len(const char *s, char c)
+{
+	int i;
+
+	i = 0;
+	while (s[i] && s[i] != c)
+		i++;
+	return (i);
+}
+
+static void *free_arr(char **arr, int j)
+{
+	while (j >= 0)
+	{
+		free(arr[j]);
+		j--;
+	}
+	free(arr);
+	return (NULL);
+}
+
+char **ft_split(char const *s, char c)
+{
+	int i;
+	int j;
+	int len;
+	char **words_array;
+
+	if (!s)
+		return (NULL);
+	i = 0;
+	j = 0;
+	words_array = malloc((ft_countwords(s, c) + 1) * sizeof(char *));
+	if (!words_array)
+		return (NULL);
+	while (j < ft_countwords(s, c))
+	{
+		while (s[i] == c)
+			i++;
+		len = word_len(s + i, c);
+		words_array[j] = ft_substr(s + i, 0, len);
+		if (!words_array[j])
+			return (free_arr(words_array, j));
+		i += len;
+		j++;
+	}
+	words_array[j] = NULL;
+	return (words_array);
+}
