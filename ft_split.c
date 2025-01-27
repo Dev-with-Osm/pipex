@@ -1,36 +1,22 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   ft_split.c                                         :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: okhourss <okhourss@student.1337.ma>        +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/01/18 21:07:36 by okhourss          #+#    #+#             */
+/*   Updated: 2025/01/18 21:07:37 by okhourss         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "pipex.h"
 
-char *ft_substr(char const *s, unsigned int start, size_t len)
+static int	ft_countwords(const char *s, char sep)
 {
-	char *sub_str;
-	size_t slen;
-	size_t i;
-
-	if (!s)
-		return (NULL);
-	i = 0;
-	slen = ft_strlen(s);
-	if (start >= slen)
-		return (ft_strdup(""));
-	if (len > slen - start)
-		len = slen - start;
-	sub_str = (char *)malloc(len + 1);
-	if (!sub_str)
-		return (NULL);
-	while (i < len)
-	{
-		sub_str[i] = s[start + i];
-		i++;
-	}
-	sub_str[len] = '\0';
-	return (sub_str);
-}
-
-static int ft_countwords(const char *s, char sep)
-{
-	int i;
-	int flg;
-	int count;
+	int	i;
+	int	flg;
+	int	count;
 
 	i = 0;
 	flg = 1;
@@ -49,9 +35,9 @@ static int ft_countwords(const char *s, char sep)
 	return (count);
 }
 
-static int word_len(const char *s, char c)
+static int	word_len(const char *s, char c)
 {
-	int i;
+	int	i;
 
 	i = 0;
 	while (s[i] && s[i] != c)
@@ -59,7 +45,7 @@ static int word_len(const char *s, char c)
 	return (i);
 }
 
-static void *free_arr(char **arr, int j)
+static void	*free_arr(char **arr, int j)
 {
 	while (j >= 0)
 	{
@@ -70,12 +56,12 @@ static void *free_arr(char **arr, int j)
 	return (NULL);
 }
 
-char **ft_split(char const *s, char c)
+char	**ft_split(char const *s, char c)
 {
-	int i;
-	int j;
-	int len;
-	char **words_array;
+	int		i;
+	int		j;
+	int		len;
+	char	**words_array;
 
 	if (!s)
 		return (NULL);

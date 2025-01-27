@@ -1,126 +1,126 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   pipex.c                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: okhourss <okhourss@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/01/18 21:07:58 by okhourss          #+#    #+#             */
+/*   Updated: 2025/01/26 09:33:08 by okhourss         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "pipex.h"
 
-void error_check(char *errType, char *errMsg)
+void	cleanup_and_exit(char *error_msg, int exit_code)
 {
-	fprintf(stderr, "%s %s\n", errType, errMsg);
-	exit(EXIT_FAILURE);
-}
-
-void err_return(void)
-{
-	perror("Error");
-	exit(EXIT_FAILURE);
-}
-
-void ft_putstr(char *s, int fd)
-{
-	if (!s)
-		return;
-	write(fd, s, strlen(s));
-}
-
-void print_error(char *text, char *type, char *cmd)
-{
-	ft_putstr(type, 2);
-	ft_putstr(": ", 2);
-	ft_putstr(text, 2);
-	if (cmd)
-		ft_putstr(cmd, 2);
-	ft_putstr("\n", 2);
-}
-
-int open_file(char *filePath, int flag)
-{
-	int fd;
-
-	if (flag == 1)
-		fd = open(filePath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	else if (flag == 2)
-		fd = open(filePath, O_RDONLY);
-	else
-		fd = open(filePath, O_RDWR | O_CREAT, 0644);
-
-	if (fd < 0)
-		error_check("Error", "Failed to open file");
-	return fd;
-}
-
-char *check_cmd(char *cmd, char **env)
-{
-	int i = 0;
-
-	while (env[i] && strncmp("PATH=", env[i], 5) != 0)
-		i++;
-	if (!env[i])
-		return (print_error("command not found: ", "command failed", cmd), NULL);
-	char **paths = ft_split(env[i] + 5, ':');
-	if (!paths)
-		return (error_check("Error", "Failed to allocate memory"), NULL);
-	char *full_cmd = NULL;
-	i = 0;
-	while (paths[i])
+	if (error_msg)
 	{
-		char *path_with_slash = ft_strjoin(paths[i], "/");
-		full_cmd = ft_strjoin(path_with_slash, cmd);
-		if (access(full_cmd, X_OK) == 0)
-			return full_cmd;
-		i++;
+		write(STDERR_FILENO, "pipex: ", 7);
+		write(STDERR_FILENO, error_msg, ft_strlen(error_msg));
+		write(STDERR_FILENO, "\n", 1);
 	}
-	print_error("command not found: ", "command failed", cmd);
-	return NULL;
+	exit(exit_code);
 }
 
-void execute_cmd(char *cmd_with_args, char **env, int input_fd, int output_fd)
+void	child_process(int *fd, const char *infile, const char *cmd, char **env)
 {
-	char **args = ft_split(cmd_with_args, ' ');
-	if (!args)
-		error_check("Error", "Failed to allocate memory for command arguments");
-	char *cmd = check_cmd(args[0], env);
-	if (!cmd)
-		exit(127);
-	if (dup2(input_fd, STDIN_FILENO) == -1 || dup2(output_fd, STDOUT_FILENO) == -1)
-		error_check("Error", "Failed to duplicate file descriptor");
-	execve(cmd, args, env);
-	perror("execve");
-	exit(127);
+	int	file;
+
+	close(fd[0]);
+	file = open(infile, O_RDONLY);
+	if (file < 0)
+	{
+		perror("Input file error");
+		exit(EXIT_FAILURE);
+	}
+	if (dup2(file, STDIN_FILENO) < 0 || dup2(fd[1], STDOUT_FILENO) < 0)
+	{
+		close(file);
+		close(fd[1]);
+		cleanup_and_exit("dup2 failed", EXIT_FAILURE);
+	}
+	close(file);
+	close(fd[1]);
+	execute_cmd((char *)cmd, env);
+	cleanup_and_exit("command execution failed", EXIT_FAILURE);
 }
 
-int main(int argc, char const *argv[], char *env[])
+void	second_child_process(int *fd, const char *outfile, const char *cmd,
+		char **env)
 {
-	if (argc != 5)
-		error_check("Usage", "./pipex infile \"cmd1\" \"cmd2\" outfile");
-
-	int fd[2];
-	if (pipe(fd) == -1)
-		err_return();
-
-	pid_t pid1 = fork();
-	if (pid1 == -1)
-		err_return();
-
-	if (pid1 == 0)
-
-		close(fd[0]);
-	int input_fd = open_file((char *)argv[1], 2);
-	execute_cmd((char *)argv[2], env, input_fd, fd[1]);
-}
-
-pid_t pid2 = fork();
-if (pid2 == -1)
-	err_return();
-
-if (pid2 == 0)
-{
+	int	file;
 
 	close(fd[1]);
-	int output_fd = open_file((char *)argv[4], 1);
-	execute_cmd((char *)argv[3], env, fd[0], output_fd);
+	file = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (file < 0)
+	{
+		close(fd[0]);
+		perror("Output file error");
+		exit(EXIT_FAILURE);
+	}
+	if (dup2(fd[0], STDIN_FILENO) < 0 || dup2(file, STDOUT_FILENO) < 0)
+	{
+		close(file);
+		close(fd[0]);
+		cleanup_and_exit("dup2 failed", EXIT_FAILURE);
+	}
+	close(file);
+	close(fd[0]);
+	execute_cmd((char *)cmd, env);
+	cleanup_and_exit("command execution failed", EXIT_FAILURE);
 }
 
-close(fd[0]);
-close(fd[1]);
-waitpid(pid1, NULL, 0);
-waitpid(pid2, NULL, 0);
+void	execute_cmd(char *cmd, char **env)
+{
+	char	**argv_content;
+	char	*cmd_path;
 
-return 0;
+	if (!cmd || !env)
+		cleanup_and_exit("Invalid command or environment", EXIT_FAILURE);
+	argv_content = ft_split(cmd, ' ');
+	if (!argv_content || !argv_content[0])
+	{
+		free_split(argv_content);
+		cleanup_and_exit("Empty command", EXIT_FAILURE);
+	}
+	cmd_path = get_command_path(argv_content[0], env);
+	if (!cmd_path)
+	{
+		free_split(argv_content);
+		cleanup_and_exit("command not found", EXIT_FAILURE);
+	}
+	execve(cmd_path, argv_content, env);
+	free(cmd_path);
+	free_split(argv_content);
+	perror("execve");
+	exit(EXIT_FAILURE);
+}
+
+int	main(int argc, const char *argv[], char *env[])
+{
+	int		fd[2];
+	pid_t	pid;
+	pid_t	pid_2;
+
+	if (argc != 5)
+		cleanup_and_exit("Arguments not enough!",
+			EXIT_FAILURE);
+	if (pipe(fd) == -1)
+		cleanup_and_exit("Pipe creation failed", EXIT_FAILURE);
+	pid = fork();
+	if (pid < 0)
+		cleanup_and_exit("Fork failed", EXIT_FAILURE);
+	if (pid == 0)
+		child_process(fd, argv[1], argv[2], env);
+	pid_2 = fork();
+	if (pid_2 < 0)
+		cleanup_and_exit("Fork failed", EXIT_FAILURE);
+	if (pid_2 == 0)
+		second_child_process(fd, argv[4], argv[3], env);
+	close(fd[0]);
+	close(fd[1]);
+	waitpid(pid, NULL, 0);
+	waitpid(pid_2, NULL, 0);
+	return (0);
 }
